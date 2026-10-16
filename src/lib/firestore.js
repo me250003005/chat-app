@@ -8,6 +8,7 @@ import {
   setDoc,
   getDoc,
   addDoc,
+  deleteDoc,
   serverTimestamp,
   onSnapshot,
   orderBy,
@@ -192,4 +193,11 @@ export async function markChatAsRead(chatId, userId) {
     },
     { merge: true }
   );
+}
+/**
+ * Delete a message. Only allowed if the current user is the sender.
+ */
+export async function deleteMessage(chatId, messageId) {
+  const messageRef = doc(db, "chats", chatId, "messages", messageId);
+  await deleteDoc(messageRef);
 }

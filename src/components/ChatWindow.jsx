@@ -7,9 +7,11 @@ import {
   subscribeToMessages,
   subscribeToChat,
   markChatAsRead,
+  deleteMessage,
 } from "../lib/firestore";
 import { useTyping, useOtherUserTyping } from "../hooks/useTyping";
 import { useNotificationSound } from "../hooks/useNotificationSound";
+import { useTrashSound } from "../hooks/useTrashSound";
 import { formatDateLabel, getDayKey } from "../utils/formatDate";
 import MessageBubble from "./MessageBubble";
 import MessageInput from "./MessageInput";
@@ -26,7 +28,11 @@ export default function ChatWindow({ selectedUser, onOpenSidebar }) {
   );
   const messagesEndRef = useRef(null);
   const lastMessageIdRef = useRef(null);
+
+  // Notification sound (for incoming messages)
   const { play: playNotification } = useNotificationSound();
+  // Trash sound (for deleting messages)
+  const { play: playTrash } = useTrashSound();
 
   const { handleTyping } = useTyping(chatId, currentUser.uid);
   const otherUserIsTyping = useOtherUserTyping(chatData, selectedUser?.uid);
@@ -122,6 +128,16 @@ export default function ChatWindow({ selectedUser, onOpenSidebar }) {
     await sendMessage(chatId, currentUser.uid, text);
   }
 
+  async function handleDelete(messageId) {
+    if (!chatId) return;
+    try {
+      await deleteMessage(chatId, messageId);
+      playTrash();
+    } catch (err) {
+      console.error("Failed to delete message:", err);
+    }
+  }
+
   if (!selectedUser) {
     return (
       <div className="flex-1 flex items-center justify-center bg-gray-800 text-gray-400">
@@ -187,7 +203,6 @@ export default function ChatWindow({ selectedUser, onOpenSidebar }) {
           className="text-white p-2 rounded hover:bg-gray-800 transition"
         >
           {soundEnabled ? (
-            // Speaker on icon
             <svg
               xmlns="http://www.w3.org/2000/svg"
               className="h-5 w-5"
@@ -203,7 +218,6 @@ export default function ChatWindow({ selectedUser, onOpenSidebar }) {
               />
             </svg>
           ) : (
-            // Speaker muted icon
             <svg
               xmlns="http://www.w3.org/2000/svg"
               className="h-5 w-5 text-gray-500"
@@ -262,7 +276,12 @@ export default function ChatWindow({ selectedUser, onOpenSidebar }) {
               {showSeparator && (
                 <DateSeparator label={formatDateLabel(msg.createdAt)} />
               )}
-              <MessageBubble message={msg} isOwn={isOwn} isRead={isRead} />
+              <MessageBubble
+                message={msg}
+                isOwn={isOwn}
+                isRead={isRead}
+                onDelete={handleDelete}
+              />
             </div>
           );
         })}
