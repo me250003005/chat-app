@@ -6,6 +6,7 @@ import {
   sendMessage,
   subscribeToMessages,
   subscribeToChat,
+  markChatAsRead,
 } from "../lib/firestore";
 import { useTyping, useOtherUserTyping } from "../hooks/useTyping";
 import { formatDateLabel, getDayKey } from "../utils/formatDate";
@@ -63,6 +64,21 @@ export default function ChatWindow({ selectedUser, onOpenSidebar }) {
     };
   }, [selectedUser, currentUser.uid]);
 
+  // Mark as read whenever messages arrive or chat is open
+  useEffect(() => {
+    if (!chatId) return;
+
+    async function markRead() {
+      try {
+        await markChatAsRead(chatId, currentUser.uid);
+      } catch (err) {
+        console.error("Failed to mark read:", err);
+      }
+    }
+
+    markRead();
+  }, [chatId, messages.length, currentUser.uid]);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -82,6 +98,9 @@ export default function ChatWindow({ selectedUser, onOpenSidebar }) {
       </div>
     );
   }
+
+  // Get the other user's lastReadAt timestamp
+  const otherUserLastRead = chatData?.lastReadAt?.[selectedUser.uid];
 
   let lastDayKey = null;
 
@@ -148,15 +167,23 @@ export default function ChatWindow({ selectedUser, onOpenSidebar }) {
           const showSeparator = dayKey !== lastDayKey;
           lastDayKey = dayKey;
 
+          const isOwn = msg.senderId === currentUser.uid;
+
+          // Determine read status: message is read if its time is before other user's lastReadAt
+          let isRead = false;
+          if (isOwn && otherUserLastRead && msg.createdAt) {
+            const msgTime = msg.createdAt.toDate
+              ? msg.createdAt.toDate().getTime()
+              : new Date(msg.createdAt).getTime();
+            isRead = msgTime <= otherUserLastRead;
+          }
+
           return (
             <div key={msg.id}>
               {showSeparator && (
                 <DateSeparator label={formatDateLabel(msg.createdAt)} />
               )}
-              <MessageBubble
-                message={msg}
-                isOwn={msg.senderId === currentUser.uid}
-              />
+              <MessageBubble message={msg} isOwn={isOwn} isRead={isRead} />
             </div>
           );
         })}

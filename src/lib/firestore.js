@@ -178,3 +178,18 @@ export function subscribeToChat(chatId, callback) {
   });
   return unsubscribe;
 }
+/**
+ * Mark a chat as read by the given user.
+ */
+export async function markChatAsRead(chatId, userId) {
+  const chatRef = doc(db, "chats", chatId);
+  await setDoc(
+    chatRef,
+    {
+      lastReadAt: {
+        [userId]: Date.now(),
+      },
+    },
+    { merge: true }
+  );
+}
