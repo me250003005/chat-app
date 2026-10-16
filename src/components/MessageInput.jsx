@@ -1,8 +1,13 @@
 // src/components/MessageInput.jsx
 import { useState } from "react";
 
-export default function MessageInput({ onSend, disabled }) {
+export default function MessageInput({ onSend, onTyping, disabled }) {
   const [text, setText] = useState("");
+
+  function handleChange(e) {
+    setText(e.target.value);
+    if (onTyping) onTyping();
+  }
 
   function handleSubmit(e) {
     e.preventDefault();
@@ -20,7 +25,7 @@ export default function MessageInput({ onSend, disabled }) {
       <input
         type="text"
         value={text}
-        onChange={(e) => setText(e.target.value)}
+        onChange={handleChange}
         placeholder={disabled ? "Select a user to start chatting" : "Type a message..."}
         disabled={disabled}
         className="flex-1 px-4 py-2 rounded-full bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"

@@ -149,3 +149,32 @@ export function subscribeToChats(currentUserId, callback) {
 
   return unsubscribe;
 }
+/**
+ * Update the typing state for a user in a chat.
+ * Passing null clears their typing state.
+ */
+export async function setTyping(chatId, userId, isTyping) {
+  const chatRef = doc(db, "chats", chatId);
+  await setDoc(
+    chatRef,
+    {
+      typing: {
+        [userId]: isTyping ? Date.now() : null,
+      },
+    },
+    { merge: true }
+  );
+}
+
+/**
+ * Subscribe to a chat document to get real-time typing state.
+ */
+export function subscribeToChat(chatId, callback) {
+  const chatRef = doc(db, "chats", chatId);
+  const unsubscribe = onSnapshot(chatRef, (docSnap) => {
+    if (docSnap.exists()) {
+      callback(docSnap.data());
+    }
+  });
+  return unsubscribe;
+}
