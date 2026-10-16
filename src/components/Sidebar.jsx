@@ -36,18 +36,18 @@ export default function Sidebar({ selectedUser, setSelectedUser }) {
   }
 
   // Sort users by most recent chat, then alphabetically
-  const sortedUsers = [...users].sort((a, b) => {
-    const aTime = toDate(chatMap[a.uid]?.lastMessageAt);
-    const bTime = toDate(chatMap[b.uid]?.lastMessageAt);
-    if (aTime && bTime) return bTime - aTime;
-    if (aTime) return -1;
-    if (bTime) return 1;
-    return a.username.localeCompare(b.username);
-  });
+ const sortedUsers = [...users].sort((a, b) => {
+  const aTime = toDate(chatMap[a.uid]?.lastMessageAt);
+  const bTime = toDate(chatMap[b.uid]?.lastMessageAt);
+  if (aTime && bTime) return bTime - aTime;
+  if (aTime) return -1;
+  if (bTime) return 1;
+  return (a.username || "").localeCompare(b.username || "");
+});
 
-  const filteredUsers = sortedUsers.filter((u) =>
-    u.username?.toLowerCase().includes(search.toLowerCase())
-  );
+const filteredUsers = sortedUsers.filter((u) =>
+  u.uid && (u.username || "").toLowerCase().includes(search.toLowerCase())
+);
 
   return (
     <div className="w-80 bg-gray-900 text-white flex flex-col border-r border-gray-800">
@@ -99,9 +99,9 @@ export default function Sidebar({ selectedUser, setSelectedUser }) {
               }`}
             >
               <div className="relative flex-shrink-0">
-                <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center font-bold">
-                  {user.username.charAt(0).toUpperCase()}
-                </div>
+               <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center font-bold">
+  {(user.username || "?").charAt(0).toUpperCase()}
+</div>
                 <span
                   className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-gray-900 ${
                     online ? "bg-green-500" : "bg-gray-500"
@@ -109,7 +109,7 @@ export default function Sidebar({ selectedUser, setSelectedUser }) {
                 />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-medium truncate">{user.username}</p>
+                <p className="font-medium truncate">{user.username || "Unknown User"}</p>
                 <p className="text-xs text-gray-400 truncate">
                   {preview ? preview : online ? "Online" : "Offline"}
                 </p>
