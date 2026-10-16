@@ -6,8 +6,10 @@ import {
   sendMessage,
   subscribeToMessages,
 } from "../lib/firestore";
+import { formatDateLabel, getDayKey } from "../utils/formatDate";
 import MessageBubble from "./MessageBubble";
 import MessageInput from "./MessageInput";
+import DateSeparator from "./DateSeparator";
 
 export default function ChatWindow({ selectedUser }) {
   const { currentUser } = useAuth();
@@ -16,7 +18,6 @@ export default function ChatWindow({ selectedUser }) {
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef(null);
 
-  // Step 1: When selected user changes, find or create the chat
   useEffect(() => {
     if (!selectedUser) {
       setChatId(null);
@@ -49,7 +50,6 @@ export default function ChatWindow({ selectedUser }) {
     };
   }, [selectedUser, currentUser.uid]);
 
-  // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -59,7 +59,6 @@ export default function ChatWindow({ selectedUser }) {
     await sendMessage(chatId, currentUser.uid, text);
   }
 
-  // If no user selected, show empty state
   if (!selectedUser) {
     return (
       <div className="flex-1 flex items-center justify-center bg-gray-800 text-gray-400">
@@ -70,6 +69,9 @@ export default function ChatWindow({ selectedUser }) {
       </div>
     );
   }
+
+  // Group messages by day for date separators
+  let lastDayKey = null;
 
   return (
     <div className="flex-1 flex flex-col bg-gray-800">
@@ -98,13 +100,23 @@ export default function ChatWindow({ selectedUser }) {
           </p>
         )}
 
-        {messages.map((msg) => (
-          <MessageBubble
-            key={msg.id}
-            message={msg}
-            isOwn={msg.senderId === currentUser.uid}
-          />
-        ))}
+        {messages.map((msg) => {
+          const dayKey = getDayKey(msg.createdAt);
+          const showSeparator = dayKey !== lastDayKey;
+          lastDayKey = dayKey;
+
+          return (
+            <div key={msg.id}>
+              {showSeparator && (
+                <DateSeparator label={formatDateLabel(msg.createdAt)} />
+              )}
+              <MessageBubble
+                message={msg}
+                isOwn={msg.senderId === currentUser.uid}
+              />
+            </div>
+          );
+        })}
 
         <div ref={messagesEndRef} />
       </div>
