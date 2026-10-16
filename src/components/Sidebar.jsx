@@ -1,7 +1,8 @@
 // src/components/Sidebar.jsx
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import { getAllUsers } from "../lib/firestore";
+import { subscribeToUsers } from "../lib/firestore";
+import { toDate } from "../utils/formatDate";
 
 export default function Sidebar({ selectedUser, setSelectedUser }) {
   const { currentUser, logout } = useAuth();
@@ -10,22 +11,25 @@ export default function Sidebar({ selectedUser, setSelectedUser }) {
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    async function loadUsers() {
-      try {
-        const data = await getAllUsers(currentUser.uid);
-        setUsers(data);
-      } catch (err) {
-        console.error("Failed to load users:", err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    loadUsers();
+    const unsubscribe = subscribeToUsers(currentUser.uid, (data) => {
+      setUsers(data);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, [currentUser.uid]);
 
   const filteredUsers = users.filter((u) =>
-    u.username.toLowerCase().includes(search.toLowerCase())
+    u.username?.toLowerCase().includes(search.toLowerCase())
   );
+
+  function isOnline(user) {
+    if (user.status !== "online") return false;
+    const lastSeen = toDate(user.lastSeen);
+    if (!lastSeen) return false;
+    // Consider online if last seen within 60 seconds
+    return Date.now() - lastSeen.getTime() < 60000;
+  }
 
   return (
     <div className="w-80 bg-gray-900 text-white flex flex-col border-r border-gray-800">
@@ -64,24 +68,35 @@ export default function Sidebar({ selectedUser, setSelectedUser }) {
           </p>
         )}
 
-        {filteredUsers.map((user) => (
-          <button
-            key={user.uid}
-            onClick={() => setSelectedUser(user)}
-            className={`w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-gray-800 transition ${
-              selectedUser?.uid === user.uid ? "bg-gray-800" : ""
-            }`}
-          >
-            <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center font-bold">
-              {user.username.charAt(0).toUpperCase()}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-medium truncate">{user.username}</p>
-              <p className="text-xs text-gray-400 truncate">{user.email}</p>
-            </div>
-            <div className="w-2 h-2 rounded-full bg-green-500" />
-          </button>
-        ))}
+        {filteredUsers.map((user) => {
+          const online = isOnline(user);
+          return (
+            <button
+              key={user.uid}
+              onClick={() => setSelectedUser(user)}
+              className={`w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-gray-800 transition ${
+                selectedUser?.uid === user.uid ? "bg-gray-800" : ""
+              }`}
+            >
+              <div className="relative">
+                <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center font-bold">
+                  {user.username.charAt(0).toUpperCase()}
+                </div>
+                <span
+                  className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-gray-900 ${
+                    online ? "bg-green-500" : "bg-gray-500"
+                  }`}
+                />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium truncate">{user.username}</p>
+                <p className="text-xs text-gray-400 truncate">
+                  {online ? "Online" : "Offline"}
+                </p>
+              </div>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

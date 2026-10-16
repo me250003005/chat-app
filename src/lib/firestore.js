@@ -90,3 +90,37 @@ export function subscribeToMessages(chatId, callback) {
 
   return unsubscribe;
 }
+
+/**
+ * Set the user's online/offline status.
+ */
+export async function setUserStatus(userId, status) {
+  const userRef = doc(db, "users", userId);
+  await setDoc(
+    userRef,
+    {
+      status,
+      lastSeen: serverTimestamp(),
+    },
+    { merge: true }
+  );
+}
+
+/**
+ * Subscribe to real-time updates of all users except the current user.
+ * Returns an unsubscribe function.
+ */
+export function subscribeToUsers(currentUserId, callback) {
+  const usersRef = collection(db, "users");
+  const unsubscribe = onSnapshot(usersRef, (snapshot) => {
+    const users = [];
+    snapshot.forEach((docSnap) => {
+      const data = docSnap.data();
+      if (data.uid !== currentUserId) {
+        users.push(data);
+      }
+    });
+    callback(users);
+  });
+  return unsubscribe;
+}

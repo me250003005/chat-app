@@ -76,15 +76,22 @@ export default function ChatWindow({ selectedUser }) {
   return (
     <div className="flex-1 flex flex-col bg-gray-800">
       {/* Header */}
+      
       <div className="p-4 border-b border-gray-700 bg-gray-900 flex items-center gap-3">
-        <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center font-bold text-white">
-          {selectedUser.username.charAt(0).toUpperCase()}
-        </div>
-        <div>
-          <p className="font-medium text-white">{selectedUser.username}</p>
-          <p className="text-xs text-green-500">Online</p>
-        </div>
-      </div>
+  <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center font-bold text-white">
+    {selectedUser.username.charAt(0).toUpperCase()}
+  </div>
+  <div>
+    <p className="font-medium text-white">{selectedUser.username}</p>
+    <p className="text-xs text-gray-400">
+      {selectedUser.status === "online" ? (
+        <span className="text-green-500">Online</span>
+      ) : (
+        "Offline"
+      )}
+    </p>
+  </div>
+</div>
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4">
