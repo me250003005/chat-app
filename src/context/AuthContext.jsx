@@ -7,7 +7,8 @@ import {
   onAuthStateChanged,
   updateProfile,
 } from "firebase/auth";
-import { auth } from "../lib/firebase";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { auth, db } from "../lib/firebase";
 
 const AuthContext = createContext();
 
@@ -19,13 +20,25 @@ export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  function register(email, password, displayName) {
-    return createUserWithEmailAndPassword(auth, email, password).then(
-      async (userCredential) => {
-        await updateProfile(userCredential.user, { displayName });
-        return userCredential;
-      }
+  async function register(email, password, displayName) {
+    const userCredential = await createUserWithEmailAndPassword(
+      auth,
+      email,
+      password
     );
+
+    await updateProfile(userCredential.user, { displayName });
+
+    // Save profile to Firestore
+    await setDoc(doc(db, "users", userCredential.user.uid), {
+      uid: userCredential.user.uid,
+      username: displayName,
+      email: email,
+      createdAt: serverTimestamp(),
+      status: "online",
+    });
+
+    return userCredential;
   }
 
   function login(email, password) {
