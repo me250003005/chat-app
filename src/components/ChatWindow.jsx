@@ -9,6 +9,7 @@ import {
   markChatAsRead,
 } from "../lib/firestore";
 import { useTyping, useOtherUserTyping } from "../hooks/useTyping";
+import { useNotificationSound } from "../hooks/useNotificationSound";
 import { formatDateLabel, getDayKey } from "../utils/formatDate";
 import MessageBubble from "./MessageBubble";
 import MessageInput from "./MessageInput";
@@ -20,16 +21,28 @@ export default function ChatWindow({ selectedUser, onOpenSidebar }) {
   const [chatId, setChatId] = useState(null);
   const [chatData, setChatData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(
+    () => localStorage.getItem("soundEnabled") !== "false"
+  );
   const messagesEndRef = useRef(null);
+  const lastMessageIdRef = useRef(null);
+  const { play: playNotification } = useNotificationSound();
 
   const { handleTyping } = useTyping(chatId, currentUser.uid);
   const otherUserIsTyping = useOtherUserTyping(chatData, selectedUser?.uid);
 
+  // Persist sound preference
+  useEffect(() => {
+    localStorage.setItem("soundEnabled", soundEnabled);
+  }, [soundEnabled]);
+
+  // Load chat
   useEffect(() => {
     if (!selectedUser) {
       setChatId(null);
       setMessages([]);
       setChatData(null);
+      lastMessageIdRef.current = null;
       return;
     }
 
@@ -64,10 +77,9 @@ export default function ChatWindow({ selectedUser, onOpenSidebar }) {
     };
   }, [selectedUser, currentUser.uid]);
 
-  // Mark as read whenever messages arrive or chat is open
+  // Mark as read
   useEffect(() => {
     if (!chatId) return;
-
     async function markRead() {
       try {
         await markChatAsRead(chatId, currentUser.uid);
@@ -75,13 +87,35 @@ export default function ChatWindow({ selectedUser, onOpenSidebar }) {
         console.error("Failed to mark read:", err);
       }
     }
-
     markRead();
   }, [chatId, messages.length, currentUser.uid]);
 
+  // Auto-scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Play notification sound on new incoming messages
+  useEffect(() => {
+    if (messages.length === 0) return;
+
+    const latest = messages[messages.length - 1];
+
+    // First load — just record the latest, do not play
+    if (lastMessageIdRef.current === null) {
+      lastMessageIdRef.current = latest.id;
+      return;
+    }
+
+    // New message arrived
+    if (latest.id !== lastMessageIdRef.current) {
+      lastMessageIdRef.current = latest.id;
+
+      if (latest.senderId !== currentUser.uid && soundEnabled) {
+        playNotification();
+      }
+    }
+  }, [messages, currentUser.uid, soundEnabled, playNotification]);
 
   async function handleSend(text) {
     if (!chatId) return;
@@ -99,7 +133,6 @@ export default function ChatWindow({ selectedUser, onOpenSidebar }) {
     );
   }
 
-  // Get the other user's lastReadAt timestamp
   const otherUserLastRead = chatData?.lastReadAt?.[selectedUser.uid];
 
   let lastDayKey = null;
@@ -132,7 +165,7 @@ export default function ChatWindow({ selectedUser, onOpenSidebar }) {
         <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center font-bold text-white">
           {selectedUser.username.charAt(0).toUpperCase()}
         </div>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="font-medium text-white truncate">
             {selectedUser.username}
           </p>
@@ -146,6 +179,53 @@ export default function ChatWindow({ selectedUser, onOpenSidebar }) {
             <p className="text-xs text-gray-400">Offline</p>
           )}
         </div>
+
+        {/* Sound toggle */}
+        <button
+          onClick={() => setSoundEnabled((s) => !s)}
+          title={soundEnabled ? "Mute notifications" : "Unmute notifications"}
+          className="text-white p-2 rounded hover:bg-gray-800 transition"
+        >
+          {soundEnabled ? (
+            // Speaker on icon
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15.536 8.464a5 5 0 010 7.072M18.364 5.636a9 9 0 010 12.728M6 10v4a1 1 0 001 1h2l4 4V5L9 9H7a1 1 0 00-1 1z"
+              />
+            </svg>
+          ) : (
+            // Speaker muted icon
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5 text-gray-500"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707A1 1 0 0112 5v14a1 1 0 01-1.707.707L5.586 15z"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M17 14l4-4m0 0l-4-4m4 4h-4"
+              />
+            </svg>
+          )}
+        </button>
       </div>
 
       {/* Messages */}
@@ -169,7 +249,6 @@ export default function ChatWindow({ selectedUser, onOpenSidebar }) {
 
           const isOwn = msg.senderId === currentUser.uid;
 
-          // Determine read status: message is read if its time is before other user's lastReadAt
           let isRead = false;
           if (isOwn && otherUserLastRead && msg.createdAt) {
             const msgTime = msg.createdAt.toDate
