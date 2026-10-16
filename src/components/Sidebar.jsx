@@ -50,7 +50,7 @@ const filteredUsers = sortedUsers.filter((u) =>
 );
 
   return (
-    <div className="w-80 bg-gray-900 text-white flex flex-col border-r border-gray-800">
+   <div className="w-80 max-w-[85vw] md:max-w-none h-screen bg-gray-900 text-white flex flex-col border-r border-gray-800">
       {/* Header */}
       <div className="p-4 border-b border-gray-800">
         <div className="flex justify-between items-center mb-3">

@@ -11,7 +11,7 @@ import MessageBubble from "./MessageBubble";
 import MessageInput from "./MessageInput";
 import DateSeparator from "./DateSeparator";
 
-export default function ChatWindow({ selectedUser }) {
+export default function ChatWindow({ selectedUser, onOpenSidebar }) {
   const { currentUser } = useAuth();
   const [messages, setMessages] = useState([]);
   const [chatId, setChatId] = useState(null);
@@ -77,7 +77,29 @@ export default function ChatWindow({ selectedUser }) {
     <div className="flex-1 flex flex-col bg-gray-800">
       {/* Header */}
       
-      <div className="p-4 border-b border-gray-700 bg-gray-900 flex items-center gap-3">
+  <div className="p-4 border-b border-gray-700 bg-gray-900 flex items-center gap-3">
+  {/* Back button — mobile only */}
+  <button
+    onClick={onOpenSidebar}
+    className="md:hidden text-white p-1 rounded hover:bg-gray-800"
+    aria-label="Open sidebar"
+  >
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      className="h-6 w-6"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M15 19l-7-7 7-7"
+      />
+    </svg>
+  </button>
+
   <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center font-bold text-white">
     {selectedUser.username.charAt(0).toUpperCase()}
   </div>
