@@ -1,35 +1,53 @@
 // src/components/Sidebar.jsx
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import { subscribeToUsers } from "../lib/firestore";
+import { subscribeToUsers, subscribeToChats } from "../lib/firestore";
 import { toDate } from "../utils/formatDate";
 
 export default function Sidebar({ selectedUser, setSelectedUser }) {
   const { currentUser, logout } = useAuth();
   const [users, setUsers] = useState([]);
+  const [chatMap, setChatMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
+  // Subscribe to users
   useEffect(() => {
     const unsubscribe = subscribeToUsers(currentUser.uid, (data) => {
       setUsers(data);
       setLoading(false);
     });
-
     return () => unsubscribe();
   }, [currentUser.uid]);
 
-  const filteredUsers = users.filter((u) =>
-    u.username?.toLowerCase().includes(search.toLowerCase())
-  );
+  // Subscribe to chats for last message preview
+  useEffect(() => {
+    const unsubscribe = subscribeToChats(currentUser.uid, (map) => {
+      setChatMap(map);
+    });
+    return () => unsubscribe();
+  }, [currentUser.uid]);
 
   function isOnline(user) {
     if (user.status !== "online") return false;
     const lastSeen = toDate(user.lastSeen);
     if (!lastSeen) return false;
-    // Consider online if last seen within 60 seconds
     return Date.now() - lastSeen.getTime() < 60000;
   }
+
+  // Sort users by most recent chat, then alphabetically
+  const sortedUsers = [...users].sort((a, b) => {
+    const aTime = toDate(chatMap[a.uid]?.lastMessageAt);
+    const bTime = toDate(chatMap[b.uid]?.lastMessageAt);
+    if (aTime && bTime) return bTime - aTime;
+    if (aTime) return -1;
+    if (bTime) return 1;
+    return a.username.localeCompare(b.username);
+  });
+
+  const filteredUsers = sortedUsers.filter((u) =>
+    u.username?.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
     <div className="w-80 bg-gray-900 text-white flex flex-col border-r border-gray-800">
@@ -70,6 +88,8 @@ export default function Sidebar({ selectedUser, setSelectedUser }) {
 
         {filteredUsers.map((user) => {
           const online = isOnline(user);
+          const preview = chatMap[user.uid]?.lastMessage;
+
           return (
             <button
               key={user.uid}
@@ -78,7 +98,7 @@ export default function Sidebar({ selectedUser, setSelectedUser }) {
                 selectedUser?.uid === user.uid ? "bg-gray-800" : ""
               }`}
             >
-              <div className="relative">
+              <div className="relative flex-shrink-0">
                 <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center font-bold">
                   {user.username.charAt(0).toUpperCase()}
                 </div>
@@ -91,7 +111,7 @@ export default function Sidebar({ selectedUser, setSelectedUser }) {
               <div className="flex-1 min-w-0">
                 <p className="font-medium truncate">{user.username}</p>
                 <p className="text-xs text-gray-400 truncate">
-                  {online ? "Online" : "Offline"}
+                  {preview ? preview : online ? "Online" : "Offline"}
                 </p>
               </div>
             </button>

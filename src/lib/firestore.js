@@ -124,3 +124,28 @@ export function subscribeToUsers(currentUserId, callback) {
   });
   return unsubscribe;
 }
+/**
+ * Subscribe to real-time updates of all chats that involve the current user.
+ * Returns a map of { otherUserId: { lastMessage, lastMessageAt } }.
+ */
+export function subscribeToChats(currentUserId, callback) {
+  const chatsRef = collection(db, "chats");
+  const q = query(chatsRef, where("participants", "array-contains", currentUserId));
+
+  const unsubscribe = onSnapshot(q, (snapshot) => {
+    const chatMap = {};
+    snapshot.forEach((docSnap) => {
+      const data = docSnap.data();
+      const otherId = data.participants.find((id) => id !== currentUserId);
+      if (otherId) {
+        chatMap[otherId] = {
+          lastMessage: data.lastMessage || "",
+          lastMessageAt: data.lastMessageAt || null,
+        };
+      }
+    });
+    callback(chatMap);
+  });
+
+  return unsubscribe;
+}
