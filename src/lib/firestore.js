@@ -55,13 +55,25 @@ export async function getOrCreateChat(userId1, userId2) {
 /**
  * Send a message in a chat.
  */
-export async function sendMessage(chatId, senderId, text) {
+export async function sendMessage(chatId, senderId, text, replyTo = null) {
   const messagesRef = collection(db, "chats", chatId, "messages");
-  await addDoc(messagesRef, {
+
+  const messageData = {
     senderId,
     text,
     createdAt: serverTimestamp(),
-  });
+  };
+
+  if (replyTo) {
+    messageData.replyTo = {
+      messageId: replyTo.id,
+      text: replyTo.text,
+      senderId: replyTo.senderId,
+      senderName: replyTo.senderName,
+    };
+  }
+
+  await addDoc(messagesRef, messageData);
 
   const chatRef = doc(db, "chats", chatId);
   await setDoc(

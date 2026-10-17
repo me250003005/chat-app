@@ -16,6 +16,7 @@ import { formatDateLabel, getDayKey } from "../utils/formatDate";
 import MessageBubble from "./MessageBubble";
 import MessageInput from "./MessageInput";
 import DateSeparator from "./DateSeparator";
+import ReplyPreview from "./ReplyPreview";
 
 export default function ChatWindow({ selectedUser, onOpenSidebar }) {
   const { currentUser } = useAuth();
@@ -26,6 +27,7 @@ export default function ChatWindow({ selectedUser, onOpenSidebar }) {
   const [soundEnabled, setSoundEnabled] = useState(
     () => localStorage.getItem("soundEnabled") !== "false"
   );
+  const [replyingTo, setReplyingTo] = useState(null);
   const messagesEndRef = useRef(null);
   const lastMessageIdRef = useRef(null);
 
@@ -49,6 +51,7 @@ export default function ChatWindow({ selectedUser, onOpenSidebar }) {
       setMessages([]);
       setChatData(null);
       lastMessageIdRef.current = null;
+      setReplyingTo(null);
       return;
     }
 
@@ -123,10 +126,31 @@ export default function ChatWindow({ selectedUser, onOpenSidebar }) {
     }
   }, [messages, currentUser.uid, soundEnabled, playNotification]);
 
-  async function handleSend(text) {
-    if (!chatId) return;
-    await sendMessage(chatId, currentUser.uid, text);
+async function handleSend(text) {
+  if (!chatId) return;
+
+  let replyPayload = null;
+  if (replyingTo) {
+    // Determine sender name for the quoted block
+    let senderName = "You";
+    if (replyingTo.senderId !== currentUser.uid) {
+      senderName = selectedUser?.username || "User";
+    }
+
+    replyPayload = {
+      id: replyingTo.id,
+      text: replyingTo.text,
+      senderId: replyingTo.senderId,
+      senderName,
+    };
   }
+
+  await sendMessage(chatId, currentUser.uid, text, replyPayload);
+  setReplyingTo(null);
+}
+function handleReply(message) {
+  setReplyingTo(message);
+}
 
   async function handleDelete(messageId) {
     if (!chatId) return;
@@ -281,6 +305,8 @@ export default function ChatWindow({ selectedUser, onOpenSidebar }) {
                 isOwn={isOwn}
                 isRead={isRead}
                 onDelete={handleDelete}
+                onReply={handleReply}
+                currentUserId={currentUser.uid}
               />
             </div>
           );
@@ -290,11 +316,19 @@ export default function ChatWindow({ selectedUser, onOpenSidebar }) {
       </div>
 
       {/* Input */}
-      <MessageInput
-        onSend={handleSend}
-        onTyping={handleTyping}
-        disabled={!chatId}
-      />
+     {/* Reply preview + input */}
+{replyingTo && (
+  <ReplyPreview
+    message={replyingTo}
+    currentUserId={currentUser.uid}
+    onCancel={() => setReplyingTo(null)}
+  />
+)}
+<MessageInput
+  onSend={handleSend}
+  onTyping={handleTyping}
+  disabled={!chatId}
+/>
     </div>
   );
 }
