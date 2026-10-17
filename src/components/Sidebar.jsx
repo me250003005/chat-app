@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { subscribeToUsers, subscribeToChats } from "../lib/firestore";
 import { toDate } from "../utils/formatDate";
+import ProfileSettings from "./ProfileSettings"; // <-- IMPORTED HERE
 
 export default function Sidebar({ selectedUser, setSelectedUser }) {
   const { currentUser, logout } = useAuth();
@@ -10,6 +11,7 @@ export default function Sidebar({ selectedUser, setSelectedUser }) {
   const [chatMap, setChatMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [showSettings, setShowSettings] = useState(false); // <-- STATE ADDED HERE
 
   // Subscribe to users
   useEffect(() => {
@@ -36,21 +38,21 @@ export default function Sidebar({ selectedUser, setSelectedUser }) {
   }
 
   // Sort users by most recent chat, then alphabetically
- const sortedUsers = [...users].sort((a, b) => {
-  const aTime = toDate(chatMap[a.uid]?.lastMessageAt);
-  const bTime = toDate(chatMap[b.uid]?.lastMessageAt);
-  if (aTime && bTime) return bTime - aTime;
-  if (aTime) return -1;
-  if (bTime) return 1;
-  return (a.username || "").localeCompare(b.username || "");
-});
+  const sortedUsers = [...users].sort((a, b) => {
+    const aTime = toDate(chatMap[a.uid]?.lastMessageAt);
+    const bTime = toDate(chatMap[b.uid]?.lastMessageAt);
+    if (aTime && bTime) return bTime - aTime;
+    if (aTime) return -1;
+    if (bTime) return 1;
+    return (a.username || "").localeCompare(b.username || "");
+  });
 
-const filteredUsers = sortedUsers.filter((u) =>
-  u.uid && (u.username || "").toLowerCase().includes(search.toLowerCase())
-);
+  const filteredUsers = sortedUsers.filter((u) =>
+    u.uid && (u.username || "").toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
-   <div className="w-80 max-w-[85vw] md:max-w-none h-screen bg-gray-900 text-white flex flex-col border-r border-gray-800">
+    <div className="w-80 max-w-[85vw] md:max-w-none h-screen bg-gray-900 text-white flex flex-col border-r border-gray-800">
       {/* Header */}
       <div className="p-4 border-b border-gray-800">
         <div className="flex justify-between items-center mb-3">
@@ -62,9 +64,33 @@ const filteredUsers = sortedUsers.filter((u) =>
             Log Out
           </button>
         </div>
-        <p className="text-xs text-gray-400 mb-3">
-          Signed in as <strong>{currentUser?.displayName}</strong>
-        </p>
+
+        {/* CLICKABLE PROFILE BUTTON */}
+        <div
+          onClick={() => {
+            console.log("THE CLICK WORKED!");
+            setShowSettings(true);
+          }}
+          className="flex items-center gap-3 mb-3 cursor-pointer p-2 rounded hover:bg-gray-800 transition border border-transparent hover:border-gray-700"
+          title="Click to edit profile"
+        >
+          {currentUser?.photoURL ? (
+            <img
+              src={currentUser.photoURL}
+              alt="Me"
+              className="w-8 h-8 rounded-full object-cover"
+            />
+          ) : (
+            <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center text-xs font-bold">
+              {currentUser?.displayName?.charAt(0).toUpperCase()}
+            </div>
+          )}
+          <p className="text-xs text-gray-400">
+            Signed in as <strong>{currentUser?.displayName}</strong>
+          </p>
+          <span className="text-xs text-blue-400 ml-auto">Edit</span>
+        </div>
+
         <input
           type="text"
           placeholder="Search users..."
@@ -99,9 +125,17 @@ const filteredUsers = sortedUsers.filter((u) =>
               }`}
             >
               <div className="relative flex-shrink-0">
-               <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center font-bold">
-  {(user.username || "?").charAt(0).toUpperCase()}
-</div>
+                {user.photoURL ? (
+                  <img
+                    src={user.photoURL}
+                    alt={user.username}
+                    className="w-10 h-10 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center font-bold">
+                    {(user.username || "?").charAt(0).toUpperCase()}
+                  </div>
+                )}
                 <span
                   className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-gray-900 ${
                     online ? "bg-green-500" : "bg-gray-500"
@@ -118,6 +152,11 @@ const filteredUsers = sortedUsers.filter((u) =>
           );
         })}
       </div>
+
+      {/* RENDER THE MODAL HERE */}
+      {showSettings && (
+        <ProfileSettings onClose={() => setShowSettings(false)} />
+      )}
     </div>
   );
 }

@@ -7,7 +7,7 @@ import {
   onAuthStateChanged,
   updateProfile,
 } from "firebase/auth";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { auth, db } from "../lib/firebase";
 
 const AuthContext = createContext();
@@ -29,13 +29,13 @@ export function AuthProvider({ children }) {
 
     await updateProfile(userCredential.user, { displayName });
 
-    // Save profile to Firestore
     await setDoc(doc(db, "users", userCredential.user.uid), {
       uid: userCredential.user.uid,
       username: displayName,
       email: email,
       createdAt: serverTimestamp(),
       status: "online",
+      photoURL: "",
     });
 
     return userCredential;
@@ -47,6 +47,49 @@ export function AuthProvider({ children }) {
 
   function logout() {
     return signOut(auth);
+  }
+
+  async function updateUserProfile(newUsername, imageFile) {
+    if (!currentUser) return;
+
+    let photoURL = currentUser.photoURL || "";
+
+    // Upload to ImgBB if there is a new image
+    if (imageFile) {
+      const formData = new FormData();
+      formData.append("image", imageFile);
+
+      const response = await fetch(
+        `https://api.imgbb.com/1/upload?key=${import.meta.env.VITE_IMGBB_API_KEY}`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+      
+      const data = await response.json();
+      if (data.success) {
+        photoURL = data.data.url; // Get the hosted image URL
+      } else {
+        throw new Error("Image upload failed");
+      }
+    }
+
+    // Update Firebase Auth profile
+    await updateProfile(currentUser, {
+      displayName: newUsername,
+      photoURL: photoURL,
+    });
+
+    // Update Firestore user document
+    const userRef = doc(db, "users", currentUser.uid);
+    await updateDoc(userRef, {
+      username: newUsername,
+      photoURL: photoURL,
+    });
+
+    // Force a re-render
+    setCurrentUser({ ...currentUser, displayName: newUsername, photoURL });
   }
 
   useEffect(() => {
@@ -63,6 +106,7 @@ export function AuthProvider({ children }) {
     register,
     login,
     logout,
+    updateUserProfile,
   };
 
   return (
